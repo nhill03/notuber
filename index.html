@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="styles.css"/>
+    <meta charset="utf-8"/>
+    <title>Not Uber</title>
+  </head>
+  <body>
+    <h3 id="header">Loading geolocation...</h3>
+    <div id="map"></div>
+    <script>
+      // callback function 
+      function initMap() {
+        //struct to store my coordinates in
+        var coords = {
+          lat : null,
+          long : null
+        }
+        // icons for myself and vehicle
+        var personalIcon = 'personalicon.png';
+        var vehicleIcon = 'vehicleicon.png';
+        var passengerIcon = 'datboii.png'
+
+        // Get my coordinates and display my position on the map
+        function showPosition(position) {
+          coords.lat = position.coords.latitude;
+          coords.long = position.coords.longitude;
+
+          // Display my latitude and longitude in header
+          h3 = document.getElementById('header');
+          h3.innerHTML = "Please refresh to update page";
+
+          var location = {lat: coords.lat, lng: coords.long};
+          var LatLngB = new google.maps.LatLng(coords.lat, coords.long);
+          var map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 4,
+            center: location
+          });
+
+    	// Send my data to the rideshare API
+          var http = new XMLHttpRequest();
+          var url = "https://jordan-marsh.herokuapp.com/rides";
+          var username = "username=sxQtZTmts3&";
+          var lat = "lat="+coords.lat+"&";
+          var long = "lng="+coords.long;
+          var params = username.concat(lat, long);
+      
+          http.open("POST", url, true);
+
+          //Send the proper header information along with the request
+          http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+  
+  		  // Display all nearby vehicles/passengers on state change
+          http.onreadystatechange = function() {
+
+              if(http.readyState == 4 && http.status == 200) {
+
+              	// parse json file into array object, print each vehicle's data
+                  responseObj = JSON.parse(http.responseText);
+
+                  // variable for determing closest vehicle/passenger
+                  shortestDistance = 10000000;
+
+                // if statement for determing passenger or vehicle
+                	// I am a passenger
+                	if(Object.getOwnPropertyNames(responseObj)[0] == "vehicles") {
+
+                    // create marker for every vehicle
+	                  for(var i = 0; i < responseObj.vehicles.length; i++) {
+                      // create marker for every vehicle
+	                    var marker = new google.maps.Marker({
+	           				    position: {lat: responseObj.vehicles[i].lat, lng: responseObj.vehicles[i].lng},
+	           				    icon: vehicleIcon,
+	           				    map: map
+	         			      });
+
+                      // create google map LatLang objects
+                      // *** LatLangB declared earlier, this is personal location ***
+                      var LatLngA = new google.maps.LatLng(responseObj.vehicles[i].lat, responseObj.vehicles[i].lng);
+
+                      // divide by 1609.34 meters in one mile to get miles
+                      var distance = google.maps.geometry.spherical.computeDistanceBetween(LatLngA, LatLngB) / 1609.34;
+
+                      // determine which car is closest while computing distances
+                      if(shortestDistance > distance) {
+                        shortestDistance = distance;
+                      }
+
+                      marker.content = '<div>Username: '+responseObj.vehicles[i].username+'<br>Distance: '+distance.toFixed(2)+' miles</div>';
+
+                      // make infowindows
+                      var infoWindow = new google.maps.InfoWindow();
+                      google.maps.event.addListener(marker, 'click', function () {
+                                infoWindow.setContent(this.content);
+                                infoWindow.open(map, this);
+                      });
+	                  }
+
+                    // display my marker as passenger
+                    var marker = new google.maps.Marker({
+                       position: location,
+                       icon: personalIcon,
+                       map: map
+                    });
+                    marker.content = '<div>Username: sxQtZTmts3<br>Nearest Vehicle: '+shortestDistance.toFixed(2)+' miles</div';
+
+                    // make personal infowindow on clicking my icon
+                    var infoWindow = new google.maps.InfoWindow();
+                    google.maps.event.addListener(marker, 'click', function () {
+                        infoWindow.setContent(this.content);
+                        infoWindow.open(map, this);
+                    });
+            	   }
+
+	                // I am a vehicle
+	                else {
+	                	// display my marker as vehicle
+          				  var marker = new google.maps.Marker({
+          					  position: location,
+           					  icon: vehicleIcon,
+           					  map: map
+          				  });
+
+	                  for(var i = 0; i < responseObj.passengers.length; i++) {
+                      // create marker for every passenger
+	                    var marker = new google.maps.Marker({
+	           				    position: {lat: responseObj.passengers[i].lat, lng: responseObj.passengers[i].lng},
+	           				    icon: passengerIcon,
+	           				    map: map
+	         			      });
+
+                      // create google map LatLang objects
+                      // *** LatLangB declared earlier, this is personal location ***
+                      var LatLngA = new google.maps.LatLng(responseObj.passengers[i].lat, responseObj.passengers[i].lng);
+
+                      // divide by 1609.34 meters in one mile to get miles
+                      var distance = google.maps.geometry.spherical.computeDistanceBetween(LatLngA, LatLngB) / 1609.34;
+
+                      // compare distances to determine shortest distance
+                      if(shortestDistance > distance) {
+                        shortestDistance = distance;
+                      }
+
+                      marker.content = '<div>Username: '+responseObj.passengers[i].username+'<br>Distance: '+distance.toFixed(2)+' miles</div>';
+                      // make infowindows
+                      var infoWindow = new google.maps.InfoWindow();
+                      google.maps.event.addListener(marker, 'click', function () {
+                                infoWindow.setContent(this.content);
+                                infoWindow.open(map, this);
+                      });
+	                  }
+                    // display my marker as a vehicle
+                    var marker = new google.maps.Marker({
+                       position: location,
+                       icon: vehicleIcon,
+                       map: map
+                    });
+                    marker.content = '<div>Username: sxQtZTmts3<br>Nearest Passenger: '+shortestDistance.toFixed(2)+' miles</div';
+                    // make personal infowindow on clicking my icon
+                    var infoWindow = new google.maps.InfoWindow();
+                    google.maps.event.addListener(marker, 'click', function () {
+                        infoWindow.setContent(this.content);
+                        infoWindow.open(map, this);
+                    });
+	                }
+              }
+          }
+		      http.send(params);
+        }
+        navigator.geolocation.getCurrentPosition(showPosition);
+      }
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCMP_LhFc53MrIIjzim_x7vaO9FK6VSu2g&callback=initMap&libraries=geometry">
+    </script>
+  </body>
+</html>
